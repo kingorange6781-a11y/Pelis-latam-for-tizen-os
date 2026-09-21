@@ -1,9 +1,9 @@
-name: Compilar Tizen Web App
-
 on:
   push:
-    branches: [ "main" ] # Se ejecuta automáticamente cuando subes cambios a la rama main
-  workflow_dispatch: # Te permite activar la compilación manualmente desde la web de GitHub
+    branches: [ "main", "master" ]
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
