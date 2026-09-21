@@ -1,0 +1,53 @@
+name: Compilar Tizen Web App
+
+on:
+  push:
+    branches: [ "main" ] # Se ejecuta automáticamente cuando subes cambios a la rama main
+  workflow_dispatch: # Te permite activar la compilación manualmente desde la web de GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Descargar el código de tu repositorio
+    - name: Checkout del código
+      uses: actions/checkout@v4
+
+    # 2. Configurar Java (Requisito obligatorio de Tizen CLI)
+    - name: Configurar Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    # 3. Descargar e instalar Tizen CLI de forma silenciosa en el servidor
+    - name: Instalar Tizen CLI
+      run: |
+        curl -o tizen-cli.bin https://tizen.org
+        chmod +x tizen-cli.bin
+        ./tizen-cli.bin --accept-license ~/tizen-studio
+        echo "~/tizen-studio/tools/ide/bin" >> $GITHUB_PATH
+
+    # 4. Decodificar el certificado author.p12 usando tus Repository Secrets
+    - name: Configurar Certificado de Firma
+      run: |
+        echo "${{ secrets.TIZEN_CERTIFICATE_BASE64 }}" | base64 --decode > author.p12
+        ~/tizen-studio/tools/ide/bin/tizen security-profiles add -n MiPerfil -a author.p12 -p ${{ secrets.TIZEN_CERTIFICATE_PASSWORD }}
+
+    # 5. Compilar los archivos web del proyecto (config.xml e icon.png)
+    - name: Compilar App
+      run: |
+        tizen build-web -- .
+
+    # 6. Generar y firmar el paquete ejecutable final (.wgt)
+    - name: Empaquetar (.wgt)
+      run: |
+        tizen package -t wgt -s MiPerfil -- ./.buildResult
+
+    # 7. Guardar el archivo .wgt en GitHub para que lo puedas descargar
+    - name: Subir archivo .wgt resultante
+      uses: actions/upload-artifact@v4
+      with:
+        name: tizen-widget
+        path: ./.buildResult/*.wgt
