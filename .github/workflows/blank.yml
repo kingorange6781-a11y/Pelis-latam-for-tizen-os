@@ -9,24 +9,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Forzamos las variables globales para permitir la ejecución en entornos Node modernos
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-    # 1. Actualizado a v5 para total compatibilidad con Node 24
     - name: Checkout del código
       uses: actions/checkout@v5
 
-    # 2. Configurar Java usando la versión v5
     - name: Configurar Java
       uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: '11'
 
-    # 3. Instalación limpia de Tizen CLI desde el servidor oficial
+    # USANDO LA URL REAL Y DIRECTA DE SAMSUNG TIZEN STUDIO v6.0
     - name: Instalar Tizen CLI
       run: |
         curl -o tizen-cli.bin https://tizen.org
@@ -34,23 +31,19 @@ jobs:
         ./tizen-cli.bin --accept-license ~/tizen-studio
         echo "~/tizen-studio/tools/ide/bin" >> $GITHUB_PATH
 
-    # 4. Decodificar el certificado usando tus secretos de repositorio
     - name: Configurar Certificado de Firma
       run: |
         echo "${{ secrets.TIZEN_CERTIFICATE_BASE64 }}" | base64 --decode > author.p12
         ~/tizen-studio/tools/ide/bin/tizen security-profiles add -n MiPerfil -a author.p12 -p ${{ secrets.TIZEN_CERTIFICATE_PASSWORD }}
 
-    # 5. Compilar los archivos web del proyecto
     - name: Compilar App
       run: |
         tizen build-web -- .
 
-    # 6. Generar el paquete firmado final
     - name: Empaquetar (.wgt)
       run: |
         tizen package -t wgt -s MiPerfil -- ./.buildResult
 
-    # 7. Subir el artefacto ejecutable para descargar
     - name: Subir archivo .wgt resultante
       uses: actions/upload-artifact@v4
       with:
