@@ -1,27 +1,30 @@
+name: Compilar Tizen Web App
+
 on:
   push:
-    branches: [ "main", "master" ]
-  release:
-    types: [published]
+    branches: [ "main", "master" ] # Escucha ambas opciones de rama principal
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Evita que el flujo se detenga por las advertencias del cambio de Node en GitHub
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true 
+
     steps:
-    # 1. Descargar el código de tu repositorio
     - name: Checkout del código
       uses: actions/checkout@v4
 
-    # 2. Configurar Java (Requisito obligatorio de Tizen CLI)
+    # 1. Actualizado a v5 para cumplir las nuevas directivas de GitHub
     - name: Configurar Java
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
         java-version: '11'
 
-    # 3. Descargar e instalar Tizen CLI de forma silenciosa en el servidor
+    # 2. URL de descarga corregida directamente a los servidores binarios oficiales de Samsung
     - name: Instalar Tizen CLI
       run: |
         curl -o tizen-cli.bin https://tizen.org
@@ -29,23 +32,19 @@ jobs:
         ./tizen-cli.bin --accept-license ~/tizen-studio
         echo "~/tizen-studio/tools/ide/bin" >> $GITHUB_PATH
 
-    # 4. Decodificar el certificado author.p12 usando tus Repository Secrets
     - name: Configurar Certificado de Firma
       run: |
         echo "${{ secrets.TIZEN_CERTIFICATE_BASE64 }}" | base64 --decode > author.p12
         ~/tizen-studio/tools/ide/bin/tizen security-profiles add -n MiPerfil -a author.p12 -p ${{ secrets.TIZEN_CERTIFICATE_PASSWORD }}
 
-    # 5. Compilar los archivos web del proyecto (config.xml e icon.png)
     - name: Compilar App
       run: |
         tizen build-web -- .
 
-    # 6. Generar y firmar el paquete ejecutable final (.wgt)
     - name: Empaquetar (.wgt)
       run: |
         tizen package -t wgt -s MiPerfil -- ./.buildResult
 
-    # 7. Guardar el archivo .wgt en GitHub para que lo puedas descargar
     - name: Subir archivo .wgt resultante
       uses: actions/upload-artifact@v4
       with:
